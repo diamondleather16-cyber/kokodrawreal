@@ -175,6 +175,7 @@ function createValidDraw(){
  }
  return createDrawOnce()||{teams:[],slots:slots0(),placement:[],sideDraw:{},split:[],hokkaidoSide:'',tokyoSide:'',specialTeams:[],rest:[]};
 }
+function newDraw(){current=createValidDraw();state={games:{},qf:null,sf:null};stepIndex=0;localStorage.removeItem(LS_STATE);renderAll();showTab('lottery')}
 function buildSteps(){
  let d=current;if(!d)return [];
  let steps=[],allSlots=Object.keys(d.slots).sort(slotSort);
