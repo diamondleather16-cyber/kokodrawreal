@@ -1,49 +1,321 @@
-<!doctype html>
-<html lang="ja">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>高校野球 現実のフリー抽選風シミュレータ</title>
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>高校野球 フリー抽選・大会進行表</title>
 <style>
-:root{--bg:#f6f7f9;--panel:#fff;--ink:#111827;--muted:#6b7280;--a:#dbeafe;--b:#fee2e2;--s:#fef3c7;--ok:#047857;--ng:#b91c1c}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}header{background:#111827;color:#fff;padding:18px 20px}header h1{margin:0;font-size:20px}main{max-width:1400px;margin:auto;padding:16px}section{background:var(--panel);border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:0 1px 4px #0001}button{border:0;border-radius:9px;background:#111827;color:#fff;padding:10px 14px;font-weight:700;margin:4px;cursor:pointer}.secondary{background:#4b5563}.note{color:var(--muted);font-size:13px;line-height:1.55}.grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.stat{background:#f3f4f6;border-radius:10px;padding:10px;min-height:86px}.stat b{font-size:18px}.ok{color:var(--ok);font-weight:700}.ng{color:var(--ng);font-weight:700}table{width:100%;border-collapse:collapse;font-size:12px;background:#fff}th,td{border:1px solid #d1d5db;padding:5px 6px;text-align:left}th{background:#f3f4f6}.A{background:var(--a)}.B{background:var(--b)}.S{background:var(--s)}.blocks{display:grid;grid-template-columns:repeat(2,minmax(560px,1fr));gap:14px}.block{background:#fafafa;border:1px solid #e5e7eb;border-radius:10px;padding:10px;overflow:auto}.pair{display:grid;grid-template-columns:170px 28px 170px 28px 170px;align-items:center;gap:6px;margin:7px 0}.box{border:1px solid #9ca3af;border-radius:6px;padding:5px 7px;min-height:36px;background:#fff;font-size:12px}.line{text-align:center;font-weight:700;color:#374151}.r2{margin-left:208px}.r3{margin-left:416px}textarea{width:100%;min-height:220px;border:1px solid #d1d5db;border-radius:8px;padding:10px;font-family:ui-monospace,Consolas,monospace}@media(max-width:900px){.grid,.blocks{grid-template-columns:1fr}.pair{grid-template-columns:1fr}.r2,.r3{margin-left:0}}
-</style>
-</head>
-<body>
-<header><h1>高校野球 現実のフリー抽選風シミュレータ</h1></header>
-<main>
-<section>
-<button onclick="draw()">1回抽選</button>
-<button class="secondary" onclick="stats(1000)">1000回集計</button>
-<button class="secondary" onclick="stats(10000)">10000回集計</button>
-<button class="secondary" onclick="resetTeams()">初期化</button>
-<p class="note">49代表へ予備抽選番号を付与。大会本部が北海道・東京についてA/Bを抽選し、北海道2校・東京2校は指定側の札から先に抽選。残り45校は残った札から完全フリー抽選します。北海道同士・東京同士だけは初戦で当たりません。</p>
-</section>
-<section id="summary"></section>
-<section><h2>3回戦までのトーナメント表</h2><p class="note">櫓1〜17は1回戦、18〜24は2回戦開始、25番は櫓1勝者と2回戦。</p><div id="bracket" class="blocks"></div></section>
-<section><h2>抽選経過</h2><div id="flow" class="note"></div></section>
-<section><h2>配置一覧</h2><div id="list"></div></section>
-<section><details><summary>代表校名・地区を編集</summary><p class="note">校名,都道府県,地区 の順で49行。</p><textarea id="teamsText"></textarea><br><button onclick="loadTeamsFromText()">反映して抽選</button></details></section>
-</main>
+:root{--ink:#111827;--bg:#f6f7f9;--card:#fff;--line:#cbd5e1;--muted:#64748b;--r1:#dcfce7;--r2:#dbeafe;--r3:#fef3c7;--qf:#fce7f3;--sf:#ede9fe;--final:#fee2e2;--a:#60a5fa;--b:#f87171;--win:#ecfdf5;--now:#fff7ed}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink)}header{background:var(--ink);color:white;padding:14px 16px}main{max-width:1700px;margin:auto;padding:12px}section{background:var(--card);border-radius:12px;padding:12px;margin:10px 0;box-shadow:0 1px 3px #0001}button{border:0;border-radius:8px;background:var(--ink);color:white;font-weight:700;padding:9px 12px;margin:3px;cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}.secondary{background:#475569}.light{background:#e5e7eb;color:#111827}.danger{background:#b91c1c}.ok{color:#047857;font-weight:700}.warn{color:#b91c1c;font-weight:700}.small{font-size:12px;color:var(--muted)}.ctrl{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.tabs button{margin:2px}.hide{display:none}input[type=text]{border:1px solid var(--line);border-radius:6px;padding:5px;font-size:12px}input.date{width:132px}input.score{width:54px;text-align:center}input.noteInput{width:120px}table{border-collapse:collapse;width:100%;font-size:12px}td,th{border:1px solid #ddd;padding:5px}.A{background:#dbeafe}.B{background:#fee2e2}.N{background:#fef3c7}.pill{display:inline-block;border-radius:999px;padding:2px 8px;margin:2px;background:#e5e7eb;font-size:12px}
+.grid{display:grid;grid-template-columns:380px 1fr;gap:12px}.sticky{position:sticky;top:10px}@media(max-width:980px){.grid{grid-template-columns:1fr}.sticky{position:static}}
+.bracket{overflow:auto}.blocks{display:grid;grid-template-columns:repeat(2,minmax(420px,1fr));gap:12px;min-width:900px}.block{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}.bt{background:#111827;color:white;padding:8px 10px;display:flex;justify-content:space-between;font-weight:800}.tree{display:grid;grid-template-columns:1fr;gap:8px;padding:8px;align-items:stretch}.col{display:flex;flex-direction:column;gap:10px}.game{border:1px solid var(--line);border-radius:9px;background:#fff;overflow:hidden}.gl{font-size:12px;font-weight:800;padding:4px 6px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:6px}.r1 .gl{background:var(--r1)}.r2 .gl{background:var(--r2)}.r3 .gl{background:var(--r3)}.qf .gl{background:var(--qf)}.sf .gl{background:var(--sf)}.final .gl{background:var(--final)}.meta{padding:4px 6px;border-bottom:1px solid #e5e7eb;background:#f8fafc;display:flex;gap:5px;flex-wrap:wrap;align-items:center}.team{min-height:34px;display:grid;grid-template-columns:34px 1fr auto;gap:6px;align-items:center;padding:4px 6px;border-bottom:1px solid #e5e7eb}.team:last-child{border-bottom:0}.slotA{border-left:5px solid var(--a)}.slotB{border-left:5px solid var(--b)}.winrow{background:var(--win)}.tn{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pref{font-size:10px;color:var(--muted)}.src{font-size:11px;color:var(--muted)}.pick{font-size:11px;padding:5px 7px;background:#e5e7eb;color:#111827}.picked{background:#047857!important;color:white!important}.pendingName{color:#94a3b8;font-weight:700}.revealedName{animation:pop .25s ease-out}@keyframes pop{from{background:#fef3c7}to{background:transparent}}
+.finals{display:grid;grid-template-columns:1fr;gap:10px;min-width:0}.note{background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:8px;font-size:12px;line-height:1.55;color:#334155}.phaseBox{border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}.bigStep{font-size:18px;font-weight:800;margin:8px 0}.stepItem{padding:8px;border-left:5px solid #cbd5e1;margin:6px 0;background:#f8fafc;border-radius:8px}.stepItem.active{border-left-color:#111827;background:#eef2ff}.stepItem.done{border-left-color:#047857;background:#ecfdf5}.stepItem.todo{opacity:.65}.lotteryNow{margin-top:12px}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;margin-top:8px}.card{border:1px solid #e5e7eb;border-radius:8px;padding:8px;background:#fff}.card b{color:#1e40af}.nowCard{border:2px solid #fb923c;background:var(--now)}.miniTable{max-height:340px;overflow:auto;border:1px solid #e5e7eb;border-radius:8px}.bar{height:10px;background:#e5e7eb;border-radius:999px;overflow:hidden;margin:6px 0}.bar span{display:block;height:100%;background:#111827}.highlightSlot{box-shadow:0 0 0 3px #fb923c inset!important}
+@media(max-width:980px){.blocks{grid-template-columns:1fr;min-width:560px}.finals{grid-template-columns:1fr;min-width:520px}.tree{grid-template-columns:1fr 1fr 1fr}.team{grid-template-columns:32px 1fr auto}}
+
+.mobileOnly{display:none}.game{max-width:100%}.team{grid-template-columns:48px minmax(0,1fr) 42px}.pick{min-width:36px}.meta{font-size:12px}.date{max-width:120px}.score{max-width:46px}.noteInput{max-width:110px}
+@media(max-width:700px){header{padding:10px 12px}header h2{font-size:18px}section{padding:8px;margin:8px 0;border-radius:10px}button{padding:8px 10px;margin:2px}.sticky{position:static}.bt{font-size:14px}.gl{font-size:12px}.team{min-height:34px;grid-template-columns:42px minmax(0,1fr) 38px}.tn{font-size:14px}.src{font-size:10px}.meta{display:grid;grid-template-columns:1fr auto 44px auto 44px;gap:4px}.noteInput{grid-column:1/6;width:100%;max-width:none}.date{width:100%;max-width:none}.tabs button{font-size:13px}.small{font-size:11px}.blocks{gap:10px}.col{gap:8px}}
+@media print{header,.noPrint{display:none}body{background:#fff}main{max-width:none;padding:0}section{box-shadow:none;margin:0;padding:6px}.blocks{grid-template-columns:repeat(2,1fr);gap:6px;min-width:0}.tree{gap:5px;padding:6px}.gl,.meta,.team{font-size:9px;padding:2px 4px}.team{min-height:24px}.pick,input{display:none}.finals{grid-template-columns:repeat(4,1fr);min-width:0}}
+
+/* 2026-06-20 修正: ブロック内の試合カードが横にはみ出して勝者ボタンが押せない問題を解消 */
+.bracket{overflow-x:auto;overflow-y:visible;padding-bottom:12px}
+.blocks{grid-template-columns:1fr!important;min-width:0!important;gap:16px}
+.block{overflow-x:auto;overflow-y:hidden}
+.tree{grid-template-columns:minmax(220px,1fr) minmax(220px,1fr) minmax(180px,.8fr)!important;min-width:720px;align-items:center}
+.game{min-width:0}
+.team{grid-template-columns:38px minmax(0,1fr) 42px}
+.pick{min-width:34px}
+.meta{align-items:center}.meta .date{width:132px}.meta .score{width:54px}.meta .noteInput{width:120px}
+@media(max-width:980px){.blocks{min-width:0!important}.block{overflow-x:auto}.tree{grid-template-columns:minmax(210px,1fr) minmax(210px,1fr) minmax(170px,.8fr)!important;min-width:660px}.finals{min-width:0!important}}
+@media(max-width:620px){.tree{min-width:620px}.grid{grid-template-columns:1fr}.team{grid-template-columns:34px minmax(0,1fr) 38px}.meta .date{width:116px}.meta .noteInput{width:105px}}
+</style></head><body><header><h2>高校野球 フリー抽選・大会進行表</h2><div class="small">代表校確定 → 予備抽選 → 北海道・東京のA/B決定 → 北海道・東京先抽選 → 残り45校フリー抽選 → 1塁側/3塁側抽選、の順にトーナメントが完成</div></header><main><div class="grid"><div><section class="sticky noPrint"><div class="ctrl"><button onclick="newDraw()">新しい抽選を作成</button><button class="secondary" onclick="stats()">1000回検証</button><button class="light" onclick="saveState()">進行保存</button><button class="light" onclick="loadState();renderAll()">進行読込</button><button class="danger" onclick="clearState()">進行初期化</button><button class="light" onclick="window.print()">印刷</button></div><div id="summary" style="margin-top:8px"></div></section><section class="noPrint"><h3>表示</h3><div class="tabs"><button onclick="showTab('lottery')">抽選フェーズ</button><button class="secondary" onclick="showTab('bracket')">進行：3回戦まで</button><button class="secondary" onclick="showTab('finals')">進行：準々決勝以降</button><button class="secondary" onclick="showTab('names')">高校名変更</button><button class="secondary" onclick="showTab('list')">配置一覧</button></div><p class="small">抽選フェーズでは「次へ」で1手順ずつ進み、該当枠だけがトーナメントに現れます。</p></section></div><div><section id="tab-lottery"><h3>抽選フェーズ</h3><div class="note">現実のフリー抽選風手順を再現します。予備抽選後、大会本部が北海道・東京のA/B所属を決定し、北海道2校・東京2校を先に抽選します。その後、残り45校が残った札から完全フリー抽選を行います。A箱はA1〜A24と25番、B箱はB1〜B24です。</div><div class="ctrl noPrint"><button onclick="prevStep()">戻る</button><button onclick="nextStep()">次へ</button><button class="light" onclick="resetSteps()">最初へ</button><button class="light" onclick="finishSteps()">最後まで</button></div><div id="lotteryWalk" class="phaseBox"></div></section><section id="tab-bracket" class="hide"><h3>進行フェーズ：3回戦まで</h3><div class="note">勝者ボタンを押すと次戦へ進みます。スコアは文字入力対応、補足欄に「延長12回タイブレーク」等を入力できます。</div><div id="bracket" class="bracket"></div></section><section id="tab-finals" class="hide"><h3>進行フェーズ：準々決勝以降</h3><div class="ctrl noPrint"><button onclick="drawQF()">準々決勝の未抽選分を確定</button><button class="light" onclick="clearQF()">準々決勝抽選解除</button><button onclick="drawSF()">準決勝の未抽選分を確定</button><button class="light" onclick="clearSF()">準決勝抽選解除</button></div><div class="note">3回戦勝者が決まったタイミングで42〜45へ逐次抽選・固定。準決勝46・47も同様です。</div><div id="finals" class="bracket"></div></section><section id="tab-names" class="hide noPrint"><h3>高校名変更</h3><div class="ctrl"><button onclick="randomSchoolNames()">仮校名をランダム投入</button><button onclick="saveNames();newDraw()">保存して新しい抽選</button><button class="light" onclick="resetNames();newDraw()">校名を初期化</button></div><div id="nameEditor"></div></section><section id="tab-list" class="hide noPrint"><h3>配置一覧</h3><div id="list"></div></section></div></div>
 <script>
-const base=[["北北海道代表","北北海道","北海道"],["南北海道代表","南北海道","北海道"],["青森代表","青森","東北"],["岩手代表","岩手","東北"],["秋田代表","秋田","東北"],["山形代表","山形","東北"],["宮城代表","宮城","東北"],["福島代表","福島","東北"],["茨城代表","茨城","関東"],["栃木代表","栃木","関東"],["群馬代表","群馬","関東"],["埼玉代表","埼玉","関東"],["千葉代表","千葉","関東"],["神奈川代表","神奈川","関東"],["山梨代表","山梨","関東"],["東東京代表","東東京","東京"],["西東京代表","西東京","東京"],["新潟代表","新潟","北信越"],["長野代表","長野","北信越"],["富山代表","富山","北信越"],["石川代表","石川","北信越"],["福井代表","福井","北信越"],["岐阜代表","岐阜","東海"],["静岡代表","静岡","東海"],["愛知代表","愛知","東海"],["三重代表","三重","東海"],["滋賀代表","滋賀","近畿"],["京都代表","京都","近畿"],["大阪代表","大阪","近畿"],["兵庫代表","兵庫","近畿"],["奈良代表","奈良","近畿"],["和歌山代表","和歌山","近畿"],["鳥取代表","鳥取","中国"],["島根代表","島根","中国"],["岡山代表","岡山","中国"],["広島代表","広島","中国"],["山口代表","山口","中国"],["香川代表","香川","四国"],["徳島代表","徳島","四国"],["愛媛代表","愛媛","四国"],["高知代表","高知","四国"],["福岡代表","福岡","九州"],["佐賀代表","佐賀","九州"],["長崎代表","長崎","九州"],["熊本代表","熊本","九州"],["大分代表","大分","九州"],["宮崎代表","宮崎","九州"],["鹿児島代表","鹿児島","九州"],["沖縄代表","沖縄","九州"]];
-let teams=[];
-function sh(a){a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
-function resetTeams(){teams=base.map((x,i)=>({name:x[0],pref:x[1],region:x[2],pre:i+1}));teamsText.value=teams.map(t=>`${t.name},${t.pref},${t.region}`).join('\n');draw()}
-function loadTeamsFromText(){const p=teamsText.value.trim().split(/\n+/).map((line,i)=>{const [name,pref,region]=line.split(',').map(s=>s.trim());return{name,pref,region,pre:i+1}}).filter(t=>t.name&&t.pref&&t.region);if(p.length!==49){alert('49校にしてください。現在:'+p.length);return}teams=p;draw()}
-function tickets(){const a=[],b=[];for(let i=1;i<=24;i++){a.push('A'+i);b.push('B'+i)}return{A:a,B:b,all:[...a,...b,'25']}}
-function take(arr){const i=Math.floor(Math.random()*arr.length);return arr.splice(i,1)[0]}
-function same(d){let c=0,p=[];for(let i=1;i<=17;i++){const a=d.slots['A'+i],b=d.slots['B'+i];if(a&&b&&a.region===b.region){c++;p.push(`櫓${i} ${a.pref}-${b.pref}（${a.region}）`)}}return{c,p}}
-function once(){const pre=sh(teams).map((t,i)=>({...t,pre:i+1}));const tk=tickets(),avail={A:[...tk.A],B:[...tk.B]},slots={},flow=[];const hSide=Math.random()<.5?'A':'B',tSide=Math.random()<.5?'A':'B';flow.push(`大会本部：北海道=${hSide}、東京=${tSide}`);const hs=pre.filter(t=>t.region==='北海道').sort((a,b)=>a.pre-b.pre),ts=pre.filter(t=>t.region==='東京').sort((a,b)=>a.pre-b.pre);for(const t of hs){const k=take(avail[hSide]);slots[k]={...t,slot:k};flow.push(`北海道 予備${t.pre} ${t.pref} → ${k}`)}for(const t of ts){const k=take(avail[tSide]);slots[k]={...t,slot:k};flow.push(`東京 予備${t.pre} ${t.pref} → ${k}`)}const used=new Set(Object.keys(slots)),remain=tk.all.filter(k=>!used.has(k)),rest=pre.filter(t=>t.region!=='北海道'&&t.region!=='東京').sort((a,b)=>a.pre-b.pre);for(const t of rest){const k=take(remain);slots[k]={...t,slot:k};flow.push(`フリー 予備${t.pre} ${t.pref} → ${k}`)}return{slots,flow,hSide,tSide}}
+const base=[["北北海道","北海道"],["南北海道","北海道"],["青森","東北"],["岩手","東北"],["秋田","東北"],["山形","東北"],["宮城","東北"],["福島","東北"],["茨城","関東"],["栃木","関東"],["群馬","関東"],["埼玉","関東"],["千葉","関東"],["神奈川","関東"],["山梨","関東"],["東東京","東京"],["西東京","東京"],["新潟","北信越"],["長野","北信越"],["富山","北信越"],["石川","北信越"],["福井","北信越"],["岐阜","東海"],["静岡","東海"],["愛知","東海"],["三重","東海"],["滋賀","近畿"],["京都","近畿"],["大阪","近畿"],["兵庫","近畿"],["奈良","近畿"],["和歌山","近畿"],["鳥取","中国"],["島根","中国"],["岡山","中国"],["広島","中国"],["山口","中国"],["香川","四国"],["徳島","四国"],["愛媛","四国"],["高知","四国"],["福岡","九州"],["佐賀","九州"],["長崎","九州"],["熊本","九州"],["大分","九州"],["宮崎","九州"],["鹿児島","九州"],["沖縄","九州"]];
+const schoolPool={
+"北北海道":["旭川実","旭川志峯","クラーク記念国際","白樺学園","帯広農","遠軽"],
+"南北海道":["北海","札幌日大","東海大札幌","駒大苫小牧","北海道栄","札幌大谷"],
+"青森":["青森山田","八戸学院光星","弘前学院聖愛","八戸工大一","青森北"],
+"岩手":["花巻東","盛岡大付","一関学院","専大北上","盛岡中央"],
+"秋田":["金足農","明桜","秋田商","能代松陽","秋田中央"],
+"山形":["鶴岡東","日大山形","酒田南","羽黒","山形中央"],
+"宮城":["仙台育英","東北","東陵","利府","聖和学園"],
+"福島":["聖光学院","学法石川","日大東北","光南","東日本国際大昌平"],
+"茨城":["常総学院","霞ヶ浦","土浦日大","鹿島学園","水城"],
+"栃木":["作新学院","文星芸大付","国学院栃木","佐野日大","青藍泰斗"],
+"群馬":["健大高崎","前橋育英","桐生第一","樹徳","高崎健康福祉大高崎"],
+"埼玉":["浦和学院","花咲徳栄","聖望学園","昌平","山村学園"],
+"千葉":["木更津総合","専大松戸","習志野","市船橋","拓大紅陵"],
+"神奈川":["横浜","東海大相模","慶應","桐光学園","横浜隼人"],
+"山梨":["山梨学院","東海大甲府","駿台甲府","帝京三","日本航空"],
+"東東京":["関東一","帝京","二松学舎大付","修徳","城東"],
+"西東京":["早実","日大三","東海大菅生","国士舘","創価"],
+"新潟":["日本文理","中越","帝京長岡","関根学園","新潟明訓"],
+"長野":["松商学園","上田西","佐久長聖","東京都市大塩尻","長野日大"],
+"富山":["高岡商","富山商","富山第一","未来富山","新湊"],
+"石川":["星稜","日本航空石川","遊学館","小松大谷","金沢"],
+"福井":["敦賀気比","福井商","北陸","啓新","福井工大福井"],
+"岐阜":["県岐阜商","大垣日大","岐阜第一","中京","帝京大可児"],
+"静岡":["静岡","常葉大菊川","静岡商","加藤学園","日大三島"],
+"愛知":["中京大中京","東邦","愛工大名電","享栄","至学館"],
+"三重":["三重","津田学園","海星","いなべ総合","宇治山田商"],
+"滋賀":["近江","滋賀学園","比叡山","彦根東","綾羽"],
+"京都":["京都国際","龍谷大平安","立命館宇治","京都外大西","鳥羽"],
+"大阪":["大阪桐蔭","履正社","関大北陽","興國","大阪学院大高"],
+"兵庫":["報徳学園","社","神戸国際大付","東洋大姫路","明石商"],
+"奈良":["智辯学園","天理","奈良大付","高田商","橿原"],
+"和歌山":["智辯和歌山","市和歌山","和歌山東","耐久","箕島"],
+"鳥取":["鳥取城北","米子松蔭","鳥取商","倉吉東"],
+"島根":["大社","開星","浜田","益田東"],
+"岡山":["創志学園","関西","おかやま山陽","倉敷商","玉野光南"],
+"広島":["広陵","広島商","新庄","盈進","呉港"],
+"山口":["宇部鴻城","下関国際","高川学園","南陽工"],
+"香川":["英明","高松商","尽誠学園","寒川"],
+"徳島":["鳴門","徳島商","生光学園","池田"],
+"愛媛":["済美","松山商","今治西","聖カタリナ"],
+"高知":["明徳義塾","高知","高知中央","岡豊"],
+"福岡":["九州国際大付","福岡大大濠","西日本短大付","東筑","筑陽学園"],
+"佐賀":["佐賀北","龍谷","有田工","神埼清明"],
+"長崎":["海星","創成館","長崎商","大崎"],
+"熊本":["熊本工","東海大熊本星翔","九州学院","文徳"],
+"大分":["明豊","大分舞鶴","津久見","藤蔭"],
+"宮崎":["宮崎商","富島","日南学園","都城東"],
+"鹿児島":["神村学園","鹿児島実","樟南","鹿屋中央"],
+"沖縄":["沖縄尚学","興南","エナジックスポーツ","ウェルネス沖縄"]
+};
+
+const LS_NAMES='kokoyakyu_names_v6', LS_STATE='kokoyakyu_progress_v7';
+let current=null, state={games:{},qf:null,sf:null}, stepIndex=0;
 function esc(s){return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
-function box(t){const cls=t?.slot==='25'?'S':t?.slot?.[0]||'';return `<div class="box ${cls}"><b>${esc(t?.name||'空き')}</b><br><span class="note">${esc(t?.pref||'')} ${esc(t?.slot||'')}</span></div>`}
-function win(s){return `<div class="box"><b>${esc(s)}</b></div>`}
-function pairHtml(y,d){return `<div class="pair">${box(d.slots['A'+y])}<div class="line">┐<br>├</div>${box(d.slots['B'+y])}<div class="line">→</div>${win('櫓'+y+'勝者')}</div>`}
-function r2Html(y,d){return `<div class="pair r2">${box(d.slots['A'+y])}<div class="line">┐<br>├</div>${box(d.slots['B'+y])}<div class="line">→</div>${win('櫓'+y+'勝者')}</div>`}
-function renderBracket(d){const blocks=[['第1','18・19',()=>r2Html(18,d)+r2Html(19,d)+`<div class="r3">${win('3回戦へ')}</div>`],['第2','20・21',()=>r2Html(20,d)+r2Html(21,d)+`<div class="r3">${win('3回戦へ')}</div>`],['第3','22・23',()=>r2Html(22,d)+r2Html(23,d)+`<div class="r3">${win('3回戦へ')}</div>`],['第4','24、1、25',()=>r2Html(24,d)+pairHtml(1,d)+`<div class="pair r2">${win('櫓1勝者')}<div class="line">┐<br>├</div>${box(d.slots['25'])}<div class="line">→</div>${win('櫓1勝者 vs 25')}</div><div class="r3">${win('櫓24勝者 vs 櫓1・25勝者')}</div>`],['第5','2〜5',()=>[2,3,4,5].map(y=>pairHtml(y,d)).join('')+`<div class="r2">${win('2回戦×2')}</div><div class="r3">${win('3回戦へ')}</div>`],['第6','6〜9',()=>[6,7,8,9].map(y=>pairHtml(y,d)).join('')+`<div class="r2">${win('2回戦×2')}</div><div class="r3">${win('3回戦へ')}</div>`],['第7','10〜13',()=>[10,11,12,13].map(y=>pairHtml(y,d)).join('')+`<div class="r2">${win('2回戦×2')}</div><div class="r3">${win('3回戦へ')}</div>`],['第8','14〜17',()=>[14,15,16,17].map(y=>pairHtml(y,d)).join('')+`<div class="r2">${win('2回戦×2')}</div><div class="r3">${win('3回戦へ')}</div>`]];bracket.innerHTML=blocks.map(b=>`<div class="block"><h3>${b[0]}ブロック（${b[1]}）</h3>${b[2]()}</div>`).join('')}
-function draw(){const d=once(),s=same(d),vals=Object.values(d.slots);summary.innerHTML=`<div class="grid"><div class="stat">配置<br><b>${vals.length}/49</b><br><span class="${vals.length===49?'ok':'ng'}">${vals.length===49?'OK':'要確認'}</span></div><div class="stat">北海道側<br><b>${d.hSide}</b></div><div class="stat">東京側<br><b>${d.tSide}</b></div><div class="stat">同地区初戦<br><b>${s.c}件</b><br><span class="note">${esc(s.p.join('、')||'なし')}</span></div><div class="stat">方式<br><b>フリー抽選</b></div></div>`;renderBracket(d);flow.innerHTML=d.flow.map(esc).join('<br>');const keys=Object.keys(d.slots).sort((a,b)=>{const na=a==='25'?25:+a.slice(1),nb=b==='25'?25:+b.slice(1);return na-nb||a.localeCompare(b)});let h='<table><tr><th>枠</th><th>校名</th><th>都道府県</th><th>地区</th><th>予備番号</th></tr>';for(const k of keys){const t=d.slots[k];h+=`<tr class="${k==='25'?'S':k[0]}"><td>${k}</td><td>${esc(t.name)}</td><td>${esc(t.pref)}</td><td>${esc(t.region)}</td><td>${t.pre}</td></tr>`}list.innerHTML=h+'</table>'}
-function stats(n){let total=0,max=0,zero=0,hk=0,tkc=0;for(let i=0;i<n;i++){const d=once(),s=same(d);total+=s.c;max=Math.max(max,s.c);if(s.c===0)zero++;for(let y=1;y<=17;y++){const a=d.slots['A'+y],b=d.slots['B'+y];if(a&&b&&a.region==='北海道'&&b.region==='北海道')hk++;if(a&&b&&a.region==='東京'&&b.region==='東京')tkc++}}alert(`${n}回集計\n平均同地区初戦:${(total/n).toFixed(3)}件\n最大:${max}件\n0件率:${(zero/n*100).toFixed(1)}%\n北海道同士:${hk}回\n東京同士:${tkc}回`)}
-resetTeams();
-</script>
-</body>
-</html>
+function sh(a){a=[...a];for(let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function byPre(a,b){return a.pre-b.pre}
+function getNames(){try{return JSON.parse(localStorage.getItem(LS_NAMES)||'{}')}catch(e){return {}}}
+function teamName(p){let n=getNames()[p];return n&&n.trim()?n.trim():p+'代表'}
+function randomSchoolNames(){let o={};base.forEach(([p])=>{let a=schoolPool[p]||[p+'代表'];o[p]=a[Math.floor(Math.random()*a.length)]});localStorage.setItem(LS_NAMES,JSON.stringify(o));renderNameEditor();newDraw()}
+function saveNames(){let o={};document.querySelectorAll('[data-pref-input]').forEach(i=>{if(i.value.trim())o[i.dataset.prefInput]=i.value.trim()});localStorage.setItem(LS_NAMES,JSON.stringify(o))}
+function resetNames(){localStorage.removeItem(LS_NAMES);renderNameEditor()}
+function renderNameEditor(){let names=getNames(),h='<table><tr><th>代表</th><th>地区</th><th>高校名</th></tr>';base.forEach(([p,r])=>h+=`<tr><td>${esc(p)}</td><td>${esc(r)}</td><td><input type="text" data-pref-input="${esc(p)}" value="${esc(names[p]||p+'代表')}"></td></tr>`);nameEditor.innerHTML=h+'</table>'}
+
+function slots0(){let s={};for(let i=1;i<=24;i++){s['A'+i]=null;s['B'+i]=null}s['25']=null;return s}
+function free(s,side){return Object.keys(s).filter(k=>k[0]==side&&!s[k])}
+function op(side){return side=='A'?'B':'A'}
+function sideSize(teams){return teams.length}
+function sameSlots(slots){let c=0,p=[];for(let i=1;i<=17;i++){let a=slots['A'+i],b=slots['B'+i];if(a&&b&&a.region==b.region){c++;p.push('試合'+i+' '+a.pref+'-'+b.pref+'('+a.region+')')}}return {c,p}}
+function isValidSlot(slots,t,slot){
+ if(!slot||slots[slot])return false;
+ if(slot=='25')return true;
+ let n=+slot.slice(1); if(n>17)return true;
+ let other=slots[op(slot[0])+n];
+ return !other || other.region!=t.region;
+}
+function mapCToSlot(side,cNo,side25){
+ if(cNo==25)return side==side25?'25':null;
+ return side+cNo;
+}
+function drawSlotFromBox(slots,t,side,side25,usedC=null){
+ let nums=[];for(let i=1;i<=25;i++)if(!usedC||!usedC.has(i))nums.push(i);
+ nums=sh(nums);
+ for(let c of nums){let slot=mapCToSlot(side,c,side25);if(slot&&isValidSlot(slots,t,slot))return {slot,cNo:c};}
+ return null;
+}
+function createDrawOnce(){
+ let teams=sh(base.map(x=>({name:teamName(x[0]),pref:x[0],region:x[1]}))).map((t,i)=>({...t,pre:i+1,originalRegion:t.region}));
+ let slots=slots0(), placement=[], log=[];
+
+ // 大会本部が北海道・東京の所属箱を、それぞれ独立に抽選する。
+ let hokkaidoSide=sh(['A','B'])[0];
+ let tokyoSide=sh(['A','B'])[0];
+
+ // 現実風の札構成：A箱=A1〜A24＋25番、B箱=B1〜B24。
+ let boxA=[...Array.from({length:24},(_,i)=>'A'+(i+1)),'25'];
+ let boxB=Array.from({length:24},(_,i)=>'B'+(i+1));
+ let boxes={A:boxA,B:boxB};
+
+ function takeFromBox(side,team,phase){
+   let box=boxes[side];
+   if(!box.length)return false;
+   let idx=Math.floor(Math.random()*box.length);
+   let slot=box.splice(idx,1)[0];
+   slots[slot]={...team,slot,side,note:phase};
+   placement.push({phase,team,slot,side});
+   return true;
+ }
+
+ // 北海道・東京4校を予備抽選番号順に先抽選。
+ let specialTeams=teams.filter(t=>t.region=='北海道'||t.region=='東京').sort(byPre);
+ for(let t of specialTeams){
+   let side=t.region=='北海道'?hokkaidoSide:tokyoSide;
+   if(!takeFromBox(side,t,'special'))return null;
+ }
+
+ // 残り45校は、A/B両箱の残札を合わせた中から完全フリー抽選。
+ let remainingTickets=[...boxes.A,...boxes.B];
+ let rest=teams.filter(t=>t.region!='北海道'&&t.region!='東京').sort(byPre);
+ for(let t of rest){
+   if(!remainingTickets.length)return null;
+   let idx=Math.floor(Math.random()*remainingTickets.length);
+   let slot=remainingTickets.splice(idx,1)[0];
+   slots[slot]={...t,slot,side:slot=='25'?'A':slot[0],note:'free'};
+   placement.push({phase:'main',team:t,slot,side:slot=='25'?'A':slot[0]});
+ }
+
+ // A/B本抽選後、各試合の1塁側・3塁側を抽選。
+ let sideDraw={};
+ for(let i=1;i<=24;i++)sideDraw[i]=sh([{type:'slot',key:'A'+i},{type:'slot',key:'B'+i}]);
+ sideDraw[25]=[{type:'slot',key:'25'},{type:'game',no:1}];
+
+ return {
+   teams,slots,placement,sideDraw,
+   hokkaidoSide,tokyoSide,
+   specialTeams,
+   rest,
+   split:[],
+   splitInfo:{side25:'A',actualCounts:{A:25,B:24},rows:[]}
+ };
+}
+function createValidDraw(){
+ for(let i=0;i<5000;i++){
+   let d=createDrawOnce();
+   if(!d)continue;
+   let vals=Object.values(d.slots).filter(Boolean),prefs=new Set(vals.map(x=>x.pref));
+   if(vals.length==49&&prefs.size==49)return d;
+ }
+ return createDrawOnce()||{teams:[],slots:slots0(),placement:[],sideDraw:{},split:[],hokkaidoSide:'',tokyoSide:'',specialTeams:[],rest:[]};
+}
+function buildSteps(){
+ let d=current;if(!d)return [];
+ let steps=[],allSlots=Object.keys(d.slots).sort(slotSort);
+
+ steps.push({
+   title:'代表校がすべてそろう',
+   body:'49代表校が確定した状態。トーナメント枠はまだ空です。',
+   reveal:[],kind:'teams'
+ });
+ steps.push({
+   title:'予備抽選番号を割り振る',
+   body:'49校に予備抽選番号1〜49を付与。以後、各校の抽選順はこの番号の若い順です。',
+   reveal:[],kind:'pre'
+ });
+ steps.push({
+   title:'北海道・東京の所属箱を決定',
+   body:`大会本部が独立に抽選し、北海道は${d.hokkaidoSide}箱、東京は${d.tokyoSide}箱に決定。A箱はA1〜A24と25番、B箱はB1〜B24です。`,
+   reveal:[],kind:'specialSide'
+ });
+
+ d.placement.filter(x=>x.phase=='special').sort((a,b)=>a.team.pre-b.team.pre).forEach((p,i)=>{
+   steps.push({
+     title:`北海道・東京先抽選 ${i+1}：予備${p.team.pre}番`,
+     body:`${p.team.name}（${p.team.pref}）は${p.side}箱から抽選 → ${p.slot}`,
+     reveal:[p.slot],kind:'place',place:p
+   });
+ });
+
+ let specialReveals=d.placement.filter(x=>x.phase=='special').map(x=>x.slot);
+ steps.push({
+   title:'北海道・東京の先抽選完了',
+   body:'北海道2校・東京2校の抽選が完了。残り45校は、両箱の残った札を合わせた中から完全フリー抽選を行います。',
+   reveal:specialReveals,kind:'mainStart'
+ });
+
+ d.placement.filter(x=>x.phase=='main').sort((a,b)=>a.team.pre-b.team.pre).forEach((p,i)=>{
+   steps.push({
+     title:`フリー抽選 ${i+1}：予備${p.team.pre}番`,
+     body:`${p.team.name}（${p.team.pref}） → ${p.slot}`,
+     reveal:[p.slot],kind:'place',place:p
+   });
+ });
+
+ steps.push({
+   title:'組合せ抽選完了・1塁側/3塁側抽選へ',
+   body:'全49代表の組合せが確定。続いて試合1〜24について、A/Bのどちらを1塁側・3塁側にするかを試合ごとに抽選します。試合25は25番枠が1塁側固定です。',
+   reveal:allSlots,kind:'sideStart'
+ });
+
+ for(let n=1;n<=25;n++){
+   let arr=(d.sideDraw&&d.sideDraw[n])?d.sideDraw[n]:defs[n];
+   let one=srcName(arr[0]),three=srcName(arr[1]);
+   steps.push({
+     title:`1塁側/3塁側決定：試合${n}`,
+     body:n==25?'試合25は25番枠が1塁側固定、試合1勝者が3塁側。':`試合${n}は ${one} が1塁側、${three} が3塁側。`,
+     reveal:allSlots,sideReveal:[n],kind:'sideDraw',gameNo:n
+   });
+ }
+
+ steps.push({
+   title:'抽選完了',
+   body:'全49代表の組合せと、各試合の1塁側・3塁側が確定しました。',
+   reveal:allSlots,
+   sideReveal:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25],
+   kind:'done'
+ });
+ return steps
+}
+function slotSort(a,b){let na=a=='25'?25:+a.slice(1),nb=b=='25'?25:+b.slice(1);return na-nb||a.localeCompare(b)}
+function visibleSet(){let s=new Set(),steps=buildSteps();for(let i=0;i<=stepIndex&&i<steps.length;i++)(steps[i].reveal||[]).forEach(k=>s.add(k));return s}
+function visibleSideSet(){let s=new Set(),steps=buildSteps();for(let i=0;i<=stepIndex&&i<steps.length;i++)(steps[i].sideReveal||[]).forEach(n=>s.add(n));return s}
+function nextStep(){let steps=buildSteps();stepIndex=Math.min(stepIndex+1,steps.length-1);renderLotteryWalk()}
+function prevStep(){stepIndex=Math.max(0,stepIndex-1);renderLotteryWalk()}
+function resetSteps(){stepIndex=0;renderLotteryWalk()}
+function finishSteps(){stepIndex=buildSteps().length-1;renderLotteryWalk()}
+function miniTeams(){let rows=current.teams.slice().sort((a,b)=>a.pref.localeCompare(b.pref,'ja')).map(t=>`<tr><td>${esc(t.pref)}</td><td>${esc(t.name)}</td><td>${esc(t.region)}</td></tr>`).join('');return `<div class="miniTable"><table><tr><th>代表</th><th>高校名</th><th>地区</th></tr>${rows}</table></div>`}
+function miniPre(){let rows=current.teams.slice().sort(byPre).map(t=>`<tr><td>${t.pre}</td><td>${esc(t.name)}</td><td>${esc(t.pref)}</td><td>${esc(t.region)}</td></tr>`).join('');return `<div class="miniTable"><table><tr><th>予備</th><th>高校名</th><th>代表</th><th>地区</th></tr>${rows}</table></div>`}
+function miniRegionActors(){let rows=current.regionActors.map(x=>`<tr><td>${x.actor.pre}</td><td>${esc(x.actor.name)}</td><td>${esc(x.actor.pref)}</td><td>${esc(x.region)}</td></tr>`).join('');return `<table><tr><th>予備</th><th>抽選者</th><th>代表</th><th>地区</th></tr>${rows}</table>`}
+function miniAssign(ra){let rows=ra.rows.map(x=>`<tr><td>${x.pre}</td><td>${esc(x.pref)}</td><td>${esc(x.target)}</td><td>${esc(x.kind)}</td></tr>`).join('');return `<table><tr><th>予備</th><th>代表</th><th>振分</th><th>扱い</th></tr>${rows}</table>`}
+function stepExtra(step){if(step.kind=='teams')return miniTeams();if(step.kind=='pre')return miniPre();if(step.kind=='regionActors')return miniRegionActors();if(step.kind=='assign')return miniAssign(step.assign);if(step.kind=='place')return `<div class="cards"><div class="card nowCard"><b>${esc(step.place.slot)}</b><br>${esc(step.place.team.name)}<br><span class="small">${esc(step.place.team.pref)}／予備${step.place.team.pre}番</span></div></div>`;return ''}
+function renderLotteryWalk(){let steps=buildSteps(),st=steps[stepIndex]||steps[0];let pct=steps.length?Math.round((stepIndex)/(steps.length-1)*100):0;let reveal=visibleSet(), sideReveal=visibleSideSet();let h=`<div class="small">手順 ${stepIndex+1} / ${steps.length}</div><div class="bar"><span style="width:${pct}%"></span></div><div class="bigStep">${esc(st.title)}</div><div class="note">${esc(st.body)}</div>${stepExtra(st)}`;h+=`<div class="lotteryNow"><h4>現在のトーナメント表</h4><div class="bracket">${renderBracketHTML(reveal,false,st.place?.slot,sideReveal)}</div></div>`;h+=steps.map((s,i)=>`<div class="stepItem ${i<stepIndex?'done':i==stepIndex?'active':'todo'}">${i+1}. ${esc(s.title)}</div>`).join('');lotteryWalk.innerHTML=h}
+function slot(k){return current?.slots?.[k]||null}function cloneTeam(t){return t?{name:t.name,pref:t.pref,region:t.region,slot:t.slot}:null}
+const defs={};function def(no,sources){defs[no]=sources}for(let i=1;i<=17;i++)def(i,[{type:'slot',key:'A'+i},{type:'slot',key:'B'+i}]);for(let i=18;i<=24;i++)def(i,[{type:'slot',key:'A'+i},{type:'slot',key:'B'+i}]);def(25,[{type:'game',no:1},{type:'slot',key:'25'}]);[[26,2,3],[27,4,5],[28,6,7],[29,8,9],[30,10,11],[31,12,13],[32,14,15],[33,16,17]].forEach(p=>def(p[0],[{type:'game',no:p[1]},{type:'game',no:p[2]}]));[[34,18,19],[35,20,21],[36,22,23],[37,24,25],[38,26,27],[39,28,29],[40,30,31],[41,32,33]].forEach(p=>def(p[0],[{type:'game',no:p[1]},{type:'game',no:p[2]}]));
+function srcName(src){if(src.type=='slot')return src.key;return '試合'+src.no+'勝者'}
+function sideSources(no,useSide){if(useSide&&current?.sideDraw&&current.sideDraw[no])return current.sideDraw[no];return defs[no]||[]}
+function withSideLabel(arr,useSide){return arr.map((src,i)=>({src,label:(useSide?(i==0?'1塁側 ':'3塁側 '):'')+srcName(src)}))}
+function resolve(src){if(src.type=='slot')return cloneTeam(slot(src.key));let g=state.games[src.no];return g?.winner?cloneTeam(g.winner):null}
+function entrants(no){if(no>=42&&no<=45){let q=state.qf?.[no];if(!q)return [{label:'再抽選待ち'},{label:'再抽選待ち'}];return q.map(x=>x.team?{team:x.team,label:x.label}:{label:x.label})}if(no==46||no==47){let s=state.sf?.[no];if(s)return s.map(x=>x.team?{team:x.team,label:x.label}:{label:x.label});return [{label:'準決勝再抽選待ち'},{label:'準決勝再抽選待ち'}]}if(no==48)return [{type:'game',no:46},{type:'game',no:47}].map(x=>({team:resolve(x),label:srcName(x)}));let useSide=no>=1&&no<=25;return withSideLabel(sideSources(no,useSide),useSide).map(x=>({team:resolve(x.src),label:x.label}))}
+function entrantsVisible(no,reveal,sideReveal=new Set()){let useSide=no>=1&&no<=25&&sideReveal.has(no);return withSideLabel(sideSources(no,useSide),useSide).map(x=>{let src=x.src;if(src.type=='slot'){let show=reveal.has(src.key);return {team:show?cloneTeam(slot(src.key)):null,label:x.label,hidden:!show}}return {team:null,label:x.label,hidden:false}})}
+function setWinner(no,idx){let es=entrants(no), e=es[idx];if(!e.team){alert('勝者が未確定です');return}state.games[no]??={};state.games[no].winner=cloneTeam(e.team);state.games[no].winnerIndex=idx;if(no>=34&&no<=41)assignQFForGame(no);if(no>=42&&no<=45)assignSFForGame(no);saveInputs();renderAll()}
+function gstate(no){state.games[no]??={};return state.games[no]}
+function saveInputs(){document.querySelectorAll('[data-date]').forEach(i=>{gstate(+i.dataset.date).date=i.value});document.querySelectorAll('[data-score]').forEach(i=>{let g=gstate(+i.dataset.score);g['score'+i.dataset.idx]=i.value});document.querySelectorAll('[data-note]').forEach(i=>{gstate(+i.dataset.note).note=i.value});localStorage.setItem(LS_STATE,JSON.stringify(state))}
+function normalizeState(){state.games??={};state.qf??=null;state.sf??=null}function saveState(){saveInputs();alert('保存しました')}function loadState(){try{state=JSON.parse(localStorage.getItem(LS_STATE)||'{"games":{},"qf":null,"sf":null}');normalizeState()}catch(e){state={games:{},qf:null,sf:null}}}function clearState(){if(confirm('進行データを初期化しますか？')){state={games:{},qf:null,sf:null};localStorage.removeItem(LS_STATE);renderAll()}}
+function row(no,e,idx,progress=true){let t=e.team, gs=gstate(no), picked=gs.winnerIndex==idx;let cls='team '+(idx==0?'slotA':'slotB')+(picked?' winrow':'');let btn=progress?`<button class="pick ${picked?'picked':''}" onclick="setWinner(${no},${idx})">勝</button>`:'<span></span>';let name=t?`<span class="tn revealedName">${esc(t.name)}</span> <span class="pref">${esc('('+t.pref+')')}</span>`:`<span class="pendingName">${e.hidden?'抽選待ち':'未定'}</span>`;return `<div class="${cls}"><span class="src">${esc(e.label)}</span><span>${name}</span>${btn}</div>`}
+function game(no,title,cls){let gs=gstate(no), es=entrants(no);return `<div class="game ${cls}"><div class="gl"><span>試合${no}</span><span>${esc(title||'')}</span></div><div class="meta"><input class="date" data-date="${no}" placeholder="8/6 10:00" value="${esc(gs.date||'')}" onchange="saveInputs()"><span>スコア</span><input class="score" type="text" inputmode="numeric" data-score="${no}" data-idx="0" placeholder="0" value="${esc(gs.score0||'')}" onchange="saveInputs()"><span>-</span><input class="score" type="text" inputmode="numeric" data-score="${no}" data-idx="1" placeholder="0" value="${esc(gs.score1||'')}" onchange="saveInputs()"><input class="noteInput" type="text" data-note="${no}" placeholder="延長12回TB等" value="${esc(gs.note||'')}" onchange="saveInputs()"></div>${row(no,es[0]||{},0,true)}${row(no,es[1]||{},1,true)}</div>`}
+function gameVis(no,title,cls,reveal,highlight,sideReveal=new Set()){let es=entrantsVisible(no,reveal,sideReveal);let hi=(es[0]?.label==highlight||es[1]?.label==highlight)?' highlightSlot':'';return `<div class="game ${cls}${hi}"><div class="gl"><span>試合${no}</span><span>${esc(title||'')}</span></div>${row(no,es[0]||{},0,false)}${row(no,es[1]||{},1,false)}</div>`}
+function block(title,left,mid,fin){return `<div class="block"><div class="bt"><span>${esc(title)}</span><span></span></div><div class="tree"><div class="col">${left.join('')}</div><div class="col">${mid.join('')}</div><div class="col">${fin}</div></div></div>`}
+function renderBracketHTML(reveal=null,progress=true,highlight=null,sideReveal=new Set()){let gv=(no,t,c)=>reveal?gameVis(no,t,c,reveal,highlight,sideReveal):game(no,t,c);return `<div class="note" style="margin:8px 0"><span class="pill" style="background:var(--r1)">1回戦</span><span class="pill" style="background:var(--r2)">2回戦</span><span class="pill" style="background:var(--r3)">3回戦</span><span class="pill">A1〜B24・25表示</span></div><div class="blocks">
+${block('試合34へ',[],[gv(18,'2回戦','r2'),gv(19,'2回戦','r2')],gv(34,'3回戦','r3'))}
+${block('試合35へ',[],[gv(20,'2回戦','r2'),gv(21,'2回戦','r2')],gv(35,'3回戦','r3'))}
+${block('試合36へ',[],[gv(22,'2回戦','r2'),gv(23,'2回戦','r2')],gv(36,'3回戦','r3'))}
+${block('試合37へ',[gv(1,'1回戦','r1')],[gv(24,'2回戦','r2'),gv(25,'2回戦','r2')],gv(37,'3回戦','r3'))}
+${block('試合38へ',[gv(2,'1回戦','r1'),gv(3,'1回戦','r1'),gv(4,'1回戦','r1'),gv(5,'1回戦','r1')],[gv(26,'2回戦','r2'),gv(27,'2回戦','r2')],gv(38,'3回戦','r3'))}
+${block('試合39へ',[gv(6,'1回戦','r1'),gv(7,'1回戦','r1'),gv(8,'1回戦','r1'),gv(9,'1回戦','r1')],[gv(28,'2回戦','r2'),gv(29,'2回戦','r2')],gv(39,'3回戦','r3'))}
+${block('試合40へ',[gv(10,'1回戦','r1'),gv(11,'1回戦','r1'),gv(12,'1回戦','r1'),gv(13,'1回戦','r1')],[gv(30,'2回戦','r2'),gv(31,'2回戦','r2')],gv(40,'3回戦','r3'))}
+${block('試合41へ',[gv(14,'1回戦','r1'),gv(15,'1回戦','r1'),gv(16,'1回戦','r1'),gv(17,'1回戦','r1')],[gv(32,'2回戦','r2'),gv(33,'2回戦','r2')],gv(41,'3回戦','r3'))}
+</div>`}
+function renderBracket(){bracket.innerHTML=renderBracketHTML(null,true)}
+function qEntry(no){let t=gstate(no).winner;return {label:'試合'+no+'勝者',team:t?cloneTeam(t):null,src:no}}function blank(label){return {label,team:null,src:null}}
+function ensureQF(){if(!state.qf)state.qf={42:[blank('34〜36勝者 抽選待ち'),blank('34〜36勝者 抽選待ち')],43:[blank('34〜36勝者 抽選待ち'),blank('試合37勝者')],44:[blank('38〜41勝者 抽選待ち'),blank('38〜41勝者 抽選待ち')],45:[blank('38〜41勝者 抽選待ち'),blank('38〜41勝者 抽選待ち')]}}
+function assignEntry(map,no,positions){let ent=qEntry(no);if(!ent.team)return false;for(let pos of positions){let e=map[pos.m]?.[pos.i];if(e&&e.src==no){map[pos.m][pos.i]=ent;return false}}let empty=positions.filter(pos=>!map[pos.m]?.[pos.i]?.src);if(!empty.length)return false;let pos=sh(empty)[0];map[pos.m][pos.i]=ent;return true}
+function assignQFForGame(no){ensureQF();let changed=false;if(no>=34&&no<=36)changed=assignEntry(state.qf,no,[{m:42,i:0},{m:42,i:1},{m:43,i:0}]);if(no==37)changed=assignEntry(state.qf,no,[{m:43,i:1}]);if(no>=38&&no<=41)changed=assignEntry(state.qf,no,[{m:44,i:0},{m:44,i:1},{m:45,i:0},{m:45,i:1}]);if(changed){state.sf=null;[42,43,44,45,46,47,48].forEach(n=>{if(state.games[n]){delete state.games[n].winner;delete state.games[n].winnerIndex}})}return changed}
+function drawQF(){saveInputs();let any=false;for(let n=34;n<=41;n++)if(assignQFForGame(n))any=true;saveInputs();renderAll();showTab('finals');if(!any)alert('未抽選の3回戦勝者はありません。既存枠は固定済みです。')}
+function clearQF(){if(!confirm('準々決勝以降の抽選と勝敗を解除しますか？'))return;state.qf=null;state.sf=null;[42,43,44,45,46,47,48].forEach(n=>{if(state.games[n]){delete state.games[n].winner;delete state.games[n].winnerIndex}});saveInputs();renderAll()}
+function ensureSF(){if(!state.sf)state.sf={46:[blank('42〜45勝者 抽選待ち'),blank('42〜45勝者 抽選待ち')],47:[blank('42〜45勝者 抽選待ち'),blank('42〜45勝者 抽選待ち')]}}
+function assignSFForGame(no){ensureSF();let changed=false;if(no>=42&&no<=45)changed=assignEntry(state.sf,no,[{m:46,i:0},{m:46,i:1},{m:47,i:0},{m:47,i:1}]);if(changed){[46,47,48].forEach(n=>{if(state.games[n]){delete state.games[n].winner;delete state.games[n].winnerIndex}})}return changed}
+function drawSF(){saveInputs();let any=false;for(let n=42;n<=45;n++)if(assignSFForGame(n))any=true;saveInputs();renderAll();showTab('finals');if(!any)alert('未抽選の準々決勝勝者はありません。既存枠は固定済みです。')}
+function clearSF(){if(!confirm('準決勝以降の抽選と勝敗を解除しますか？'))return;state.sf=null;[46,47,48].forEach(n=>{if(state.games[n]){delete state.games[n].winner;delete state.games[n].winnerIndex}});saveInputs();renderAll()}
+function renderFinals(){finals.innerHTML=`<div class="finals">${game(42,'準々決勝','qf')}${game(43,'準々決勝','qf')}${game(44,'準々決勝','qf')}${game(45,'準々決勝','qf')}${game(46,'準決勝','sf')}${game(47,'準決勝','sf')}${game(48,'決勝','final')}</div>`}
+function renderList(){let keys=Object.keys(current.slots).sort(slotSort);let h='<table><tr><th>枠</th><th>校名</th><th>代表</th><th>地区</th><th>予備</th><th>抽選方式</th></tr>';keys.forEach(k=>{let t=current.slots[k];h+=`<tr class="${k[0]}"><td>${esc(k)}</td><td>${esc(t?.name||'')}</td><td>${esc(t?.pref||'')}</td><td>${esc(t?.region||'')}</td><td>${esc(t?.pre||'')}</td><td>${esc(t?.note=='special'?'北海道・東京先抽選':t?.note=='free'?'完全フリー抽選':t?.note||'')}</td></tr>`});list.innerHTML=h+'</table>'}
+function renderAll(){
+ if(!current)current=createValidDraw();
+ let s=sameSlots(current.slots),vals=Object.values(current.slots).filter(Boolean),prefs=new Set(vals.map(x=>x.pref));
+ summary.innerHTML=`配置 ${vals.length}/49　${prefs.size==49?'<span class=ok>OK</span>':'<span class=warn>要確認</span>'}<br>
+ 北海道：${esc(current.hokkaidoSide)}箱　東京：${esc(current.tokyoSide)}箱<br>
+ 同地区初戦：<b>${s.c}</b>件<br>${s.p.join('<br>')||'なし'}`;
+ renderNameEditor();renderBracket();renderFinals();renderList();renderLotteryWalk()
+}
+function stats(){
+ let n=1000,total=0,max=0,zero=0,hkConflict=0,tokyoConflict=0;
+ for(let i=0;i<n;i++){
+   let d=createValidDraw(),s=sameSlots(d.slots);
+   total+=s.c;if(s.c>max)max=s.c;if(s.c==0)zero++;
+   for(let y=1;y<=17;y++){
+     let a=d.slots['A'+y],b=d.slots['B'+y];
+     if(a&&b&&a.region=='北海道'&&b.region=='北海道')hkConflict++;
+     if(a&&b&&a.region=='東京'&&b.region=='東京')tokyoConflict++;
+   }
+ }
+ alert('1000回平均 同地区初戦：'+(total/n).toFixed(3)+'件\n最大：'+max+'件\n0件率：'+(zero/n*100).toFixed(1)+'%\n北海道同士初戦：'+hkConflict+'回\n東京同士初戦：'+tokyoConflict+'回')
+}
+function showTab(name){['lottery','bracket','finals','names','list'].forEach(x=>document.getElementById('tab-'+x).classList.toggle('hide',x!==name));if(name=='names')renderNameEditor()}
+renderNameEditor();loadState();current=createValidDraw();renderAll();
+</script></main></body></html>
