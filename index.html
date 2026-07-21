@@ -219,28 +219,16 @@ function buildSteps(){
    });
  });
 
- steps.push({
-   title:'組合せ抽選完了・1塁側/3塁側抽選へ',
-   body:'全49代表の組合せが確定。続いて試合1〜24について、A/Bのどちらを1塁側・3塁側にするかを試合ごとに抽選します。試合25は25番枠が1塁側固定です。',
-   reveal:allSlots,kind:'sideStart'
- });
 
- for(let n=1;n<=25;n++){
-   let arr=(d.sideDraw&&d.sideDraw[n])?d.sideDraw[n]:defs[n];
-   let one=srcName(arr[0]),three=srcName(arr[1]);
-   steps.push({
-     title:`1塁側/3塁側決定：試合${n}`,
-     body:n==25?'試合25は25番枠が1塁側固定、試合1勝者が3塁側。':`試合${n}は ${one} が1塁側、${three} が3塁側。`,
-     reveal:allSlots,sideReveal:[n],kind:'sideDraw',gameNo:n
    });
  }
-
- steps.push({
+steps.push({
    title:'抽選完了',
-   body:'全49代表の組合せと、各試合の1塁側・3塁側が確定しました。',
+   body:'全49代表の組合せが確定しました。',
    reveal:allSlots,
-   sideReveal:[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25],
    kind:'done'
+});
+ 
  });
  return steps
 }
